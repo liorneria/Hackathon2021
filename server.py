@@ -18,8 +18,8 @@ sockets = []
 answer1 = []
 answer2 = []
 # randomize the math question
-x1 = random.randrange(1, 4)
-x2 = random.randrange(1, 5)
+x1 = random.randrange(0, 3)
+x2 = random.randrange(0, 6)
 answer = x1 + x2
 # time for the end
 FinishTime = time.time() + 100
@@ -85,7 +85,7 @@ def AddNewClient(_socket, address):
         print("there is an error")
 
 
-def Player1(client, address):
+def firstPlayer(client, address):
     global answer1
     lock = threading.RLock()
     TimeLeft = time.time() + 10
@@ -106,7 +106,7 @@ def Player1(client, address):
     return
 
 
-def Player2(client, address):
+def secPlayer(client, address):
     global answer2
     lock = threading.RLock()
     TimeLeft = 10 + time.time()
@@ -136,7 +136,7 @@ def StartGame():
         str(x1) + " + " + str(x2)
     print(welcome_message)
     # for each socket connection we call to ther relevant function
-    connections = [Player1, Player2]
+    connections = [firstPlayer, secPlayer]
     for s in range(len(sockets)):
         sockets[s].send(welcome_message.encode())
         _thread.start_new_thread(connections[s], (sockets[s], addresses[s]))
@@ -191,62 +191,43 @@ def CloseSockets():
     sockets = []
 
 
-def main():
-    global FinishTime
-    global numClients
-    global x1
-    global x2
-    global answer
+# starting the server by creating UDP sockets connections
+UdpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+UdpSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+UdpSocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+# connetct to our port 2160
+UdpSocket.bind(('', 2160))
+print(u"\u001B[32mServer started' listening on IP address 172.1.0.22\u001B[32m")
 
-    # starting the server by creating UDP sockets connections
-    UdpSocket = socket.socket(
-        socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    UdpSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    UdpSocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    # connetct to our port 2160
-    UdpSocket.bind(('', 2160))
-    print(
-        u"\u001B[32mServer started' listening on IP address 172.1.0.22\u001B[32m")
-    # now we wait unlil we have two clients
-    while True:
-        numClients = 0
-        thread = threading.Thread(target=SearchClients, args=())
-        thread.start()
-        x1 = random.randrange(1, 5)
-        x2 = random.randrange(1, 4)
-        answer = x1 + x1
-        FinishTime = time.time()+10
-
-        while time.time() < FinishTime and numClients < 2:
-            try:
-                # sending broadcast
-                BroadcastMassege = struct.pack('Ibh', 0xabcddcba, 0x2, 2160)
-                UdpSocket.sendto(BroadcastMassege, (test, 13117))
-                time.sleep(1)
-            except:
-                time.sleep(1)
-
-        # if we have 2 clients we can start the game
-        if numClients == 2:
-            StartGame()
-            time.sleep(10)
-            ValidateResults()
-            CloseSockets()
-
-        # while time.time() < FinishTime:
-        #     time.sleep(1)
-
-        # time.sleep(100)
-
-        # closing the server
-        print("Game over, sending out offer requests...")
+# now we wait unlil we have two clients
+while time.time() < FinishTime and numClients < 2:
+    try:
+        # sending broadcast
+        BroadcastMassege = struct.pack('Ibh', 0xabcddcba, 0x2, 2160)
+        UdpSocket.sendto(BroadcastMassege, (dev, 13117))
+        time.sleep(1)
+    except:
         time.sleep(1)
 
-        # send
-        # BroadcastMassege = struct.pack('Ibh', 0xfeedbeef, 0x2, 2160)
-        # UdpSocket.sendto(BroadcastMassege, (dev, 13117))
-        # time.sleep(1)
+# if we have 2 clients we can start the game
+if numClients == 2:
+    StartGame()
+    time.sleep(10)
+    ValidateResults()
+    CloseSockets()
+
+while time.time() < FinishTime:
+    time.sleep(1)
+
+# time.sleep(100)
+
+# closing the server
+print("Game over, sending out offer requests...")
+time.sleep(1)
+
+while True:
+    BroadcastMassege = struct.pack('Ibh', 0xfeedbeef, 0x2, 2160)
+    UdpSocket.sendto(BroadcastMassege, (dev, 13117))
+    time.sleep(1)
 
 
-if __name__ == '__main__':
-    main()
